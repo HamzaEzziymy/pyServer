@@ -1,0 +1,5 @@
+Flask
+Flask-Cors
+Flask-SocketIO
+yt-dlp
+eventlet  # Necessary for WebSockets with Flask-SocketIO on Render
