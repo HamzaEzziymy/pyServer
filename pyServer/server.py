@@ -10,14 +10,14 @@ CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 def download_video_with_progress(video_url):
+    filename = f'{uuid.uuid4()}.mp4'
     ydl_opts = {
-        'outtmpl': f'{uuid.uuid4()}.%(ext)s',
+        'outtmpl': filename,
         'progress_hooks': [progress_hook],
     }
 
     with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=True)
-        filename = ydl.prepare_filename(info)
+        ydl.download([video_url])
 
     return filename
 
@@ -32,8 +32,15 @@ def download_video():
     if not video_url:
         return "No URL provided", 400
 
-    filename = download_video_with_progress(video_url)
-    return send_file(filename, as_attachment=True)
+    try:
+        filename = download_video_with_progress(video_url)
+        return send_file(filename, as_attachment=True, download_name=filename)
+    except Exception as e:
+        return str(e), 500
+    finally:
+        # Clean up the file after sending
+        if 'filename' in locals():
+            os.remove(filename)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
