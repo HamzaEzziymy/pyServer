@@ -1,13 +1,16 @@
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from yt_dlp import YoutubeDL
 import os
 import uuid
+import logging
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+logging.basicConfig(level=logging.INFO)
 
 def download_video_with_progress(video_url):
     ydl_opts = {
@@ -30,10 +33,14 @@ def progress_hook(d):
 def download_video():
     video_url = request.args.get('url')
     if not video_url:
-        return "No URL provided", 400
+        return jsonify({"error": "No URL provided"}), 400
 
-    filename = download_video_with_progress(video_url)
-    return send_file(filename, as_attachment=True)
+    try:
+        filename = download_video_with_progress(video_url)
+        return send_file(filename, as_attachment=True)
+    except Exception as e:
+        app.logger.error('Exception occurred', exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
