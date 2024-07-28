@@ -26,7 +26,7 @@ def progress_hook(d):
         percentage = d['_percent_str']
         socketio.emit('download_progress', {'percentage': percentage})
 
-@app.route('/download', methods=['GET'])
+@app.route('/', methods=['GET'])
 def download_video():
     video_url = request.args.get('url')
     if not video_url:
