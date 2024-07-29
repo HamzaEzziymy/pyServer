@@ -38,7 +38,7 @@ def progress_hook(d):
 def download_video():
     video_url = request.args.get('url')
     if not video_url:
-        return "No URL provided", 400
+        return "No URL providedd", 400
 
     filename = download_video_with_progress(video_url)
     response = send_file(filename, as_attachment=True)
