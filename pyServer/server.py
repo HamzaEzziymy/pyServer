@@ -1,26 +1,31 @@
-from flask import Flask, request, send_file, jsonify
+import eventlet
+eventlet.monkey_patch()
+
+from flask import Flask, request, send_file
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from yt_dlp import YoutubeDL
+import tempfile
 import os
 import uuid
-import logging
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-logging.basicConfig(level=logging.INFO)
-
 def download_video_with_progress(video_url):
+    temp_dir = tempfile.gettempdir()
+    filename = os.path.join(temp_dir, f'{uuid.uuid4()}.mp4')
+
     ydl_opts = {
-        'outtmpl': f'{uuid.uuid4()}.%(ext)s',
+        'outtmpl': filename,
         'progress_hooks': [progress_hook],
+        'format': 'best',
+        'merge_output_format': 'mp4',
     }
 
     with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=True)
-        filename = ydl.prepare_filename(info)
+        ydl.download([video_url])
 
     return filename
 
@@ -33,14 +38,15 @@ def progress_hook(d):
 def download_video():
     video_url = request.args.get('url')
     if not video_url:
-        return jsonify({"error": "No URL provided"}), 400
+        return "No URL provided", 400
 
-    try:
-        filename = download_video_with_progress(video_url)
-        return send_file(filename, as_attachment=True)
-    except Exception as e:
-        app.logger.error('Exception occurred', exc_info=True)
-        return jsonify({"error": str(e)}), 500
+    filename = download_video_with_progress(video_url)
+    response = send_file(filename, as_attachment=True)
+
+    # Ensure the file is removed after it is sent to the client
+    response.call_on_close(lambda: os.remove(filename))
+
+    return response
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
